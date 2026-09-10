@@ -38,11 +38,11 @@ cd /opt/prepperpi/scripts
 
 ### Step 2: Run Installation
 ```bash
-# Make install script executable
-sudo chmod +x install.sh
+# (Optional) Set a custom password before installing
+nano config/network.conf   # set PASSPHRASE — or leave as-is to auto-generate one
 
-# Run the installation (this will take 10-15 minutes)
-sudo bash install.sh
+# Run the installer (takes 10-15 minutes on first run)
+sudo bash scripts/fresh-install.sh
 ```
 
 ### Step 3: Reboot and Connect
@@ -52,8 +52,8 @@ sudo reboot
 ```
 
 After reboot:
-1. **Connect to Wi-Fi**: Look for `PrepperPi` network
-2. **Password**: `PrepperPi1234!`
+1. **Connect to Wi-Fi**: Look for your configured SSID (default: `PrepperPi`)
+2. **Password**: Printed to the console at the end of `fresh-install.sh` and saved to `config/network.conf` — record it before the terminal scrolls
 3. **Access Web Interface**: Open browser to `http://prepperpi.local` or `http://10.10.0.1`
 
 ## ⚙️ Configuration
@@ -64,13 +64,13 @@ Edit `/opt/prepperpi/config/network.conf`:
 
 ```bash
 SSID="PrepperPi"
-PASSPHRASE="PrepperPi1234!"
+PASSPHRASE="your-strong-random-password"   # set this before running fresh-install.sh
 COUNTRY="US"
 SUBNET="10.10.0.0/24"
 PI_IP="10.10.0.1"
 ```
 
-**⚠️ Important**: Change the default password immediately after installation!
+**First-boot note**: If `PASSPHRASE` is left as the placeholder when `fresh-install.sh` runs, a strong random password is generated automatically, printed to the console, and saved to `config/network.conf`. Record it before the terminal scrolls.
 
 ### Content Configuration
 
@@ -121,8 +121,8 @@ PrepperPi uses systemd services for reliable operation:
 
 ### Check Service Status
 ```bash
-sudo systemctl status prepperpi-kiwix
-sudo systemctl status prepperpi-monitor
+sudo systemctl status kiwix-serve
+sudo systemctl status prepperpi-web
 sudo systemctl status hostapd
 sudo systemctl status dnsmasq
 sudo systemctl status nginx
@@ -130,7 +130,8 @@ sudo systemctl status nginx
 
 ### Restart Services
 ```bash
-sudo systemctl restart prepperpi-kiwix
+sudo systemctl restart kiwix-serve
+sudo systemctl restart prepperpi-web
 sudo systemctl restart hostapd
 sudo systemctl restart dnsmasq
 sudo systemctl restart nginx
@@ -139,10 +140,10 @@ sudo systemctl restart nginx
 ### View Service Logs
 ```bash
 # Kiwix server logs
-sudo journalctl -u prepperpi-kiwix -f
+sudo journalctl -u kiwix-serve -f
 
-# System monitor logs
-sudo journalctl -u prepperpi-monitor -f
+# Web application logs
+sudo journalctl -u prepperpi-web -f
 
 # All PrepperPi logs
 sudo tail -f /opt/prepperpi/logs/*.log
@@ -185,27 +186,28 @@ sudo /opt/prepperpi/scripts/verify_install.sh
 ```
 /opt/prepperpi/
 ├── config/              # Configuration files
-│   ├── network.conf     # Network settings
-│   ├── kiwix.conf      # Content sources
-│   ├── system.conf     # System settings
-│   └── nginx.conf      # Web server config
-├── scripts/            # Management scripts
-│   ├── install.sh      # Main installer
-│   ├── update_content.sh # Content manager
-│   ├── backup.sh       # Backup system
-│   ├── monitor.py      # System monitor
+│   ├── network.conf     # Network settings (SSID, passphrase, IP range)
+│   ├── kiwix.conf       # Content sources and storage profile
+│   └── system.conf      # System settings
+├── scripts/             # Management scripts
+│   ├── fresh-install.sh # Full installer for a new Pi
+│   ├── update-app.sh    # Non-destructive app updater for existing installs
+│   ├── update_content.sh # ZIM content downloader
+│   ├── backup.sh        # Backup system
+│   ├── monitor.py       # System monitor
 │   └── verify_install.sh # Installation verification
-├── web/               # Web interface
-│   ├── app.py         # Flask application
-│   ├── static/        # CSS, JavaScript, images
-│   └── templates/     # HTML templates
-├── systemd/           # Service definitions
-├── logs/             # System and application logs
-├── backup/           # Automated backups
-└── data/             # Content storage
-    ├── kiwix/        # ZIM files
-    ├── pdfs/         # PDF documents
-    └── maps/         # Offline maps
+├── webapp/              # Web interface (Flask, port 5001 via waitress)
+│   ├── app.py           # Flask application entry point
+│   └── templates/       # HTML templates
+├── configs/             # Deployable service configs
+│   ├── nginx/           # nginx site config
+│   ├── hostapd/         # Access point config template
+│   ├── dnsmasq/         # dnsmasq config template
+│   └── systemd/         # systemd unit files
+├── logs/                # System and application logs
+├── backup/              # Automated backups
+└── data/                # Content storage
+    └── zim/             # Kiwix ZIM files
 ```
 
 ## 🩺 Troubleshooting
@@ -261,23 +263,10 @@ sudo /opt/prepperpi/scripts/verify_install.sh
    sudo systemctl status nginx
    ```
 
-<<<<<<< HEAD
 2. **Check Flask application**:
    ```bash
-   sudo systemctl status prepperpi-monitor
+   sudo systemctl status prepperpi-web
    ```
-=======
-`
-/opt/prepperpi/
-config/          # Configuration files
-scripts/         # Installation and management scripts
-web/            # Web interface files
-logs/           # System and application logs
-backup/         # Automated backups
-systemd/        # Service definitions
-data/           # Kiwix content and library
-`
->>>>>>> 685c56559e3db77be73d60da282d8ee04020e068
 
 3. **View error logs**:
    ```bash
@@ -484,9 +473,9 @@ This project is released under the **MIT License**. See [LICENSE](LICENSE) file 
 ## 🏁 Quick Start Summary
 
 1. **Clone repo**: `git clone https://github.com/YOUR_USERNAME/prepperpi.git`
-2. **Install**: `sudo cp -r prepperpi /opt/ && cd /opt/prepperpi/scripts && sudo bash install.sh`
+2. **Install**: `cd prepperpi && sudo bash scripts/fresh-install.sh`
 3. **Reboot**: `sudo reboot`
-4. **Connect**: Wi-Fi "PrepperPi" with password "PrepperPi1234!"
+4. **Connect**: Wi-Fi with the password shown at end of install (or check `config/network.conf`)
 5. **Browse**: Visit `http://prepperpi.local`
 6. **Secure**: Change default password in settings!
 
